@@ -55,8 +55,8 @@ contract DeployRariVulnSetup {
             msg.sender // Admin (set to deployer)
         );
 
-        // 6. Register CEther market with Comptroller
-        proxy._supportMarket(address(cEther));
+        // 6. Register CEther market with Comptroller (use public wrapper)
+        proxy.supportMarket(address(cEther));
 
         // 7. (Optional) Set collateral factors, market params, fund cEther, etc.
         // proxy._setCollateralFactor(address(cEther), 0.8e18); // 80%, set as needed
