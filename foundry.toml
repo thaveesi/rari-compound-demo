@@ -2,6 +2,9 @@
 src = "contracts"
 out = "out"
 libs = ["lib"]
+optimizer        = true
+optimizer_runs   = 1000       # 200 is Compound’s default
+via_ir           = true       # optional, shrinks 5-10 % more on 0.5.x
 
 solc_version = "0.5.17"
 
