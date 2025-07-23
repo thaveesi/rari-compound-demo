@@ -34,6 +34,15 @@ contract FuseAdminStub {
         return impl;
     }
 
+    /// @notice Always approve CErc20Delegate implementations
+    function cErc20DelegateWhitelist(
+        address /*pool*/,
+        address /*implementation*/,
+        bool    /*allowResign*/
+    ) external pure returns (bool) {
+        return true;
+    }
+
     /* ---------- Fee & limit stubs ---------- */
 
     /// @notice **Zero-fee** stub – critical for `_setAdminFeeFresh` bound.
