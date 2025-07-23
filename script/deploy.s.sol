@@ -18,7 +18,7 @@ interface Vm {
 
 /* ──────────────────────────────  imports  ─────────────────────────────── */
 import "../contracts/Unitroller.sol";
-import "../condtracts/Comptroller.sol";
+import "../contracts/Comptroller.sol";
 import "../contracts/SimplePriceOracle.sol";
 import "../contracts/CEther.sol";
 import "../contracts/PriceOracle.sol";
