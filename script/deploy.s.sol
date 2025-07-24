@@ -84,13 +84,28 @@ contract DeployRariCore {
 
         bytes memory stubCode = type(FuseAdminStub).runtimeCode;
         vm.etch(FUSE_ADMIN, stubCode);                           // whitelist stub
+        // Set Unitroller admin to the broadcast EOA so upgrades are authorized
 
-        vm.store(address(unit), bytes32(uint(2)), bytes32(uint(1)));
-        vm.store(address(unit), bytes32(uint(3)), bytes32(uint(1)));
-        vm.store(address(unit), bytes32(uint(4)), bytes32(uint(address(irm))));
+        // ── storage patch -------------------------------------------------
+        // slot 4 : fuseAdmin address
+        // slot 5 : fuseAdminHasRights = true
+        // slot 6 : adminHasRights     = true
+        vm.store(address(unit), bytes32(uint256(4)), bytes32(uint256(uint160(FUSE_ADMIN))));
+        vm.store(address(unit), bytes32(uint256(5)), bytes32(uint256(1)));
+        vm.store(address(unit), bytes32(uint256(6)), bytes32(uint256(1)));
 
-        require(unit._setPendingImplementation(address(impl)) == 0);
+        // slot 3 : pendingComptrollerImplementation → impl
+        vm.store(address(unit), bytes32(uint256(3)), bytes32(uint256(uint160(address(impl)))));
+
+        vm.stopBroadcast(); // finish the first Fuse‑admin batch before the self‑call
+        // Comptroller must call _become, which will move impl from slot 3 → slot 2
+        // Call _become as the Unitroller admin (Fuse‑admin) so the brains change is authorised
+        vm.startPrank(FUSE_ADMIN);
         impl._become(unit);
+        vm.stopPrank();
+
+        // Resume as Fuse‑admin for the remaining pool setup
+        vm.startBroadcast();   // broadcast as Unitroller admin
 
         Comptroller proxy = Comptroller(address(unit));
         proxy._setPriceOracle(PriceOracle(address(oracle)));
@@ -98,7 +113,6 @@ contract DeployRariCore {
         proxy._setLiquidationIncentive(1e18);
 
         CEther cEth = new CEther();
-
         vm.stopBroadcast();      // end pool-admin batch
 
         /************ 2️⃣  initialise cETH as Fuse admin *******************/
@@ -124,7 +138,7 @@ contract DeployRariCore {
         // We wrap the whole sequence in a single broadcast so all state
         // changes are mined in one transaction.
         // Broadcast the following transactions *as* the Fuse admin
-        vm.startBroadcast(FUSE_ADMIN);
+        vm.startPrank(FUSE_ADMIN);  // no broadcast; impersonate Fuse‑admin only
 
         // Keep the stub code at the Fuse‑admin address so the whitelist
         // and fee checks still pass
@@ -158,7 +172,6 @@ contract DeployRariCore {
 
         // price: 1 DUSD = 1 USD = 1e18 in ETH‑scaled oracle
         oracle.setUnderlyingPrice(CToken(address(cDUSD)), 1e18);
-
-        vm.stopBroadcast(); // ⚡️ all done
+        vm.stopPrank();
     }
 }
