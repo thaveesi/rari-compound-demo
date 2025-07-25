@@ -27,8 +27,8 @@ import "../contracts/WhitePaperInterestRateModel.sol";
 import "../contracts/CErc20Delegate.sol";
 import "../contracts/CErc20Delegator.sol";
 import "../contracts/EIP20Interface.sol";
-
-import "./FuseAdminStub.sol";
+import "../contracts/CErc20.sol";
+import "../contracts/CToken.sol";
 
 /* ───────────────────────────  mock ERC-20  ────────────────────────────── */
 contract DemoUSD is EIP20Interface {
@@ -39,20 +39,31 @@ contract DemoUSD is EIP20Interface {
     mapping(address => uint)                      public balances;
     mapping(address => mapping(address => uint))  public allowances;
 
-    constructor() public { balances[msg.sender] = totalSupply; }
+    constructor() public {
+        balances[msg.sender] = totalSupply;
+    }
 
     function transfer(address to, uint amt) external returns (bool) {
-        balances[msg.sender] -= amt; balances[to] += amt; return true;
+        balances[msg.sender] -= amt;
+        balances[to] += amt;
+        return true;
     }
     function approve(address s, uint a) external returns (bool) {
-        allowances[msg.sender][s] = a; return true;
+        allowances[msg.sender][s] = a;
+        return true;
     }
-    function transferFrom(address f,address t,uint a) external returns (bool){
+    function transferFrom(address f, address t, uint a) external returns (bool) {
         allowances[f][msg.sender] -= a;
-        balances[f] -= a; balances[t] += a; return true;
+        balances[f] -= a;
+        balances[t] += a;
+        return true;
     }
-    function balanceOf(address a) external view returns (uint) { return balances[a]; }
-    function allowance(address o,address s) external view returns (uint) { return allowances[o][s]; }
+    function balanceOf(address a) external view returns (uint) {
+        return balances[a];
+    }
+    function allowance(address o, address s) external view returns (uint) {
+        return allowances[o][s];
+    }
 }
 
 /* ─────────────────────────  IRM stub (unchanged)  ─────────────────────── */
@@ -62,6 +73,21 @@ contract IRMStub {
     function checkpointInterest(uint256) external pure {}
     function resetInterestCheckpoints() external pure {}
     function interestFeeRate() external pure returns (uint) { return 0; }
+}
+
+/* ──────────────────────  FuseAdminStub (inlined)  ────────────────────── */
+interface IFuseAdmin {
+    function comptrollerImplementationWhitelist(address oldImpl, address newImpl) external view returns (bool);
+    function latestComptrollerImplementation(address currentImpl) external view returns (address);
+    function deployCEther(bytes calldata data) external returns (address);
+    function deployCErc20(bytes calldata data) external returns (address);
+}
+
+contract FuseAdminStub is IFuseAdmin {
+    function comptrollerImplementationWhitelist(address, address) external view returns (bool) { return true; }
+    function latestComptrollerImplementation(address currentImpl) external view returns (address) { return currentImpl; }
+    function deployCEther(bytes calldata) external returns (address) { return address(new CEther()); }
+    function deployCErc20(bytes calldata) external returns (address) { return address(new CErc20()); }
 }
 
 /* ─────────────────────────  deployment script  ────────────────────────── */
@@ -138,7 +164,7 @@ contract DeployRariCore {
         // We wrap the whole sequence in a single broadcast so all state
         // changes are mined in one transaction.
         // Broadcast the following transactions *as* the Fuse admin
-        vm.startPrank(FUSE_ADMIN);  // no broadcast; impersonate Fuse‑admin only
+        vm.startBroadcast(FUSE_ADMIN);  // broadcast as Fuse‑admin (tx.origin)
 
         // Keep the stub code at the Fuse‑admin address so the whitelist
         // and fee checks still pass
@@ -164,14 +190,49 @@ contract DeployRariCore {
             0,                                      // reserveFactorMantissa
             0                                       // adminFeeMantissa
         );
-
-
-        // ── list the market & set parameters (still inside broadcast) ──
+        // ── list the markets & set parameters (still inside broadcast) ──
+        proxy._supportMarket(CToken(address(cEth)));
+        proxy._setCollateralFactor(CToken(address(cEth)), 0.75e18);
         proxy._supportMarket(CToken(address(cDUSD)));
         proxy._setCollateralFactor(CToken(address(cDUSD)), 0.75e18);
 
-        // price: 1 DUSD = 1 USD = 1e18 in ETH‑scaled oracle
-        oracle.setUnderlyingPrice(CToken(address(cDUSD)), 1e18);
+        vm.stopBroadcast();
+    }
+
+    /**
+     * @notice Deploys and initializes a fresh CEther market
+     * @param proxy The deployed Comptroller proxy
+     * @param irm The interest rate model stub
+     * @param name The ERC-20 name for the cToken
+     * @param symbol The ERC-20 symbol for the cToken
+     * @param reserveFactorMantissa The reserve factor mantissa
+     * @param adminFeeMantissa The admin fee mantissa
+     * @return The newly deployed CEther instance
+     */
+    function deployAndInitCEther(
+        ComptrollerInterface proxy,
+        InterestRateModel irm,
+        string memory name,
+        string memory symbol,
+        uint256 reserveFactorMantissa,
+        uint256 adminFeeMantissa
+    ) public returns (CEther) {
+
+        vm.startBroadcast();   // ← pay for CEther
+        CEther cEth = new CEther();
+        vm.stopBroadcast();
+
+        // Initialize as Fuse admin
+        vm.startPrank(FUSE_ADMIN);
+        token.initialize(
+            proxy,
+            irm,
+            name,
+            symbol,
+            reserveFactorMantissa,
+            adminFeeMantissa
+        );
         vm.stopPrank();
+        return token;
     }
 }
