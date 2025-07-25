@@ -17,18 +17,18 @@ interface Vm {
 }
 
 /* ──────────────────────────────  imports  ─────────────────────────────── */
-import "../contracts/Unitroller.sol";
-import "../contracts/Comptroller.sol";
-import "../contracts/SimplePriceOracle.sol";
-import "../contracts/CEther.sol";
-import "../contracts/PriceOracle.sol";
+import "contracts/Unitroller.sol";
+import "contracts/Comptroller.sol";
+import "contracts/SimplePriceOracle.sol";
+import "contracts/CEther.sol";
+import "contracts/PriceOracle.sol";
 
-import "../contracts/WhitePaperInterestRateModel.sol";
-import "../contracts/CErc20Delegate.sol";
-import "../contracts/CErc20Delegator.sol";
-import "../contracts/EIP20Interface.sol";
-import "../contracts/CErc20.sol";
-import "../contracts/CToken.sol";
+import "contracts/WhitePaperInterestRateModel.sol";
+import "contracts/CErc20Delegate.sol";
+import "contracts/CErc20Delegator.sol";
+import "contracts/EIP20Interface.sol";
+import "contracts/CErc20.sol";
+import "contracts/CToken.sol";
 
 /* ───────────────────────────  mock ERC-20  ────────────────────────────── */
 contract DemoUSD is EIP20Interface {
