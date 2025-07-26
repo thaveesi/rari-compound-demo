@@ -196,6 +196,10 @@ contract DeployRariCore {
         proxy._supportMarket(CToken(address(cDUSD)));
         proxy._setCollateralFactor(CToken(address(cDUSD)), 0.75e18);
 
+        // --- NOW set prices ---
+        oracle.setUnderlyingPrice(CToken(address(cEth)), 1e18);
+        oracle.setUnderlyingPrice(CToken(address(dusd)), 1e18);
+
         vm.stopBroadcast();
     }
 
